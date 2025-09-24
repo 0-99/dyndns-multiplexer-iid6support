@@ -1,0 +1,63 @@
+services:
+  app:
+    image: 0-99/dyndns-multiplexer-iid6support:latest
+    #or directly build the image from the Dockerfile in the parent directory
+    ##build:
+    ##  context: ../
+    ##  dockerfile: Dockerfile
+    container_name: dyndns-multiplexer
+    #volumes:
+      #no volumes needed
+    network_mode: bridge
+    ports:
+      - "8085:8080"
+    environment:
+      # example from fritzbox-dyndns-configuration:
+      ## Update-URL: http://ip-to-your-container-host:8085/update?username=<username>&passwd=<passwd>&domain=<domain>&ipaddr=<ipaddr>&ip6addr=<ip6addr>&ip6lanprefix=<ip6lanprefix>&dualstack=<dualstack>
+      ## Domain name: 
+      #USER_NAME: 'user' # optional, default 'user'
+      USER_PASSWORD: 't0pSecr3t' # mandatory, for example 't0pSecr3t'
+      #USER_DOMAIN_NAME: 'any.domain' # optional, default 'any.domain'
+      #LOG_VERBOSE: false # optional, default false
+      # query-params based on the definition in https://fritz.com/service/wissensdatenbank/dok/FRITZ-Box-7490/30_Dynamic-DNS-in-FRITZ-Box-einrichten/
+      ## username: required. The username to verify environment-variable "USER_NAME"
+      ## passwd: required. The user-password to verify environment-variable "USER_PASSWORD"
+      ## domain: required. The user-domain-name to verify environment-variable "USER_DOMAIN_NAME"
+      ## ipaddr: optional. global IPv4-Address from the router, one of ipaddr or ip6addr must be set
+      ## ip6addr: optional. global IPv6-Address from the router, one of ipaddr or ip6addr must be set
+      ## ip6lanprefix: optional. global IPv6 prefix for the network in CIDR notation, e.g. "bab3:d3ad:b33f:ca13::/64"
+      ## dualstack: optional. Dualstack
+      #uri-variables based on the definition in https://fritz.com/service/wissensdatenbank/dok/FRITZ-Box-7490/30_Dynamic-DNS-in-FRITZ-Box-einrichten/
+      ## <username>: content of provider attribute "username"
+      ## <passwd>: content of provider attribute "passwd"
+      ## <domain>: content of provider attribute "domain"
+      ## <ipaddr>: content of query param "ipaddr"
+      ## <ip6addr>:
+      ##           if provider attribute "iid6" exists: content of query param "ip6lanprefix" PLUS content of provider attribute "iid6"
+      ##           if provider attribute "iid6" NOT exists: content of query param "ip6addr"
+      ## <ip6lanprefix>: content of query param "ip6lanprefix"
+      ## <dualstack>: content of query param "dualstack"
+      PROVIDERS: |
+        [
+          {
+            "uri": "https://my.ddns.provider/upd.php?user=<username>&pwd=<passwd>&host=<domain>&ip=<ipaddr>&ip6=<ip6addr>",
+            "username": "example" ,
+            "passwd": "anotherExample",
+            "domain": "exampledomain.my.domain",
+            "iid6": "cafe:babe:dead:beef"
+          },
+          {
+            "uri": "https://another.ddns.provider/upd.php?user=<username>&pwd=<passwd>&host=<domain>&ip=<ipaddr>&ip6=<ip6addr>",
+            "username": "custom" ,
+            "passwd": "pwd",
+            "domain": "anotherdomain.other.domain"
+          },
+          {
+            "uri": "https://www.ddnss.de/upd.php?user=<username>&pwd=<passwd>&host=<domain>&ip=<ipaddr>&ip6=<ip6addr>",
+            "username": "example" ,
+            "passwd": "anotherExample",
+            "domain": "worked.with.ddnss.de",
+            "iid6": "cafe:babe:dead:beef"
+          }
+        ]
+    restart: unless-stopped
