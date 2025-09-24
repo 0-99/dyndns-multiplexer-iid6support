@@ -1,5 +1,7 @@
 # dyndns-multiplexer-iid6support
 
+Self-hosted DynDNS multiplexer for routers like Fritzbox. Forwards update requests to multiple providers, supports IPv4/IPv6, custom client addresses via Interface ID (IID) and ISP prefix. Easy config via environment variables and Docker.
+
 ## Introduction
 Many routers (such as Fritzbox) only allow configuration of a single DynDNS endpoint. Typically, only the router's own IPv6 address is sent to the DynDNS provider—there is no client-side way to forward individual IPv6 addresses from clients (e.g., reverse proxies or internal hosts). Some DynDNS providers offer zone management, and there are various container solutions that periodically check the client's IP address via PULL requests. This project takes a different approach: it does not use PULL, but acts as a self-hosted webhook, allowing you to update multiple DynDNS providers and domains at once. It also enables direct assignment of custom client IPv6 addresses using the Interface ID (IID, "Interface Identifier") and the ISP-assigned IPv6 prefix.
 
@@ -85,3 +87,4 @@ On routers like FritzBox, the global IPv6 address assigned to a client is typica
 
 ## License
 MIT
+
