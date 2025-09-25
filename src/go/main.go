@@ -14,6 +14,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -52,7 +53,7 @@ func LoadConfigFromEnv() (*Config, error) {
 
 	cfg.Domain = os.Getenv("USER_DOMAIN_NAME")
 	if cfg.Domain == "" {
-		cfg.Domain = "any.domain"
+		cfg.Domain = "dyndns.multiplexer.internal"
 	}
 
 	providersJson := os.Getenv("PROVIDERS")
@@ -76,7 +77,7 @@ func LoadConfigFromEnv() (*Config, error) {
 		} else {
 			if p.Iid6 != "" {
 				//Parse and validate the interface ID.
-				ifaceIP := net.ParseIP("::" + p.Iid6)
+				ifaceIP := net.ParseIP(p.Iid6)
 				if ifaceIP == nil || ifaceIP.To16() == nil {
 					return nil, fmt.Errorf("invalid interface ID: %s", p.Iid6)
 				} else {
@@ -214,13 +215,24 @@ func ParseQueryParams(r *http.Request) (*QueryParams, error) {
 // region StatusTracker
 // Tracks status and severity for DynDNS responses
 type StatusTracker struct {
-	SeverityMap map[string]int
-	Highest     int
-	FinalStatus string
-	ResponseIp  string
+	SeverityMap  map[string]int
+	Highest      int
+	FinalStatus  string
+	HeaderStatus string
+	ResponseIp   string
 }
 
-func NewStatusTracker(defaultIp string) *StatusTracker {
+func NewStatusTracker(ipv4, ipv6 string) *StatusTracker {
+	var responseIp string
+	if ipv4 == "" {
+		responseIp = ipv6
+	} else {
+		responseIp = ipv4
+		if ipv6 != "" {
+			responseIp = ipv4 + " " + ipv6
+		}
+	}
+
 	// Severity values according to DynDNS v2 protocol (https://help.dyn.com/remote-access-api/return-codes/)
 	return &StatusTracker{
 		SeverityMap: map[string]int{
@@ -239,9 +251,10 @@ func NewStatusTracker(defaultIp string) *StatusTracker {
 			"ok":       0,
 			"nochg":    -1,
 		},
-		Highest:     -1,
-		FinalStatus: "nochg " + defaultIp,
-		ResponseIp:  defaultIp,
+		Highest:      -1,
+		FinalStatus:  "nochg " + responseIp,
+		HeaderStatus: "nochg",
+		ResponseIp:   responseIp,
 	}
 }
 
@@ -269,6 +282,11 @@ func (s *StatusTracker) CheckStatus(result string, exactReturnCodeMatch bool) {
 	log.Println("Matched return code: " + status)
 	if sev > s.Highest {
 		s.Highest = sev
+		s.HeaderStatus = status
+		// Set finalStatus according to DynDNS v2 protocol
+		// https://help.dyn.com/remote-access-api/return-codes/
+		// Note: For confirmation purposes, good and nochg messages will be followed by the IP address that the hostname was updated to.
+		// This value will be separated from the return code by a space.
 		switch status {
 		case "good", "nochg":
 			s.FinalStatus = status + " " + s.ResponseIp
@@ -317,9 +335,7 @@ func combinePrefixAndIID6(network net.IPNet, ifaceIP net.IP) (string, error) {
 func dyndnsHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("[REQUESTOR] " + r.RemoteAddr)
 	if globalErr != nil {
-		log.Println("UNHEALTHY: config error. " + globalErr.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintln(w, "UNHEALTHY: config error. "+globalErr.Error())
+		responseWithError(w, http.StatusInternalServerError, "911", "UNHEALTHY: config error. "+globalErr.Error())
 		return
 	}
 	if config.LogVerbose {
@@ -328,17 +344,16 @@ func dyndnsHandler(w http.ResponseWriter, r *http.Request) {
 
 	query, err := ParseQueryParams(r)
 	if err != nil {
-		log.Println("[ERROR] " + err.Error())
-		http.Error(w, "badauth", http.StatusBadRequest)
+		responseWithError(w, http.StatusBadRequest, "badauth", "[ERROR] "+err.Error())
 		return
 	} else if config.LogVerbose {
 		if query.Ip6LanNetwork != nil {
 			log.Printf("[REQUEST] Parsed Ip6LanNetwork: %s\n", query.Ip6LanNetwork.String())
 		}
 	}
+
 	// Check if query params match config
-	if (query.Username != config.Username) || (query.Password != config.Password) || (query.Domain != config.Domain) {
-		log.Println("[ERROR] Query parameters do not match configuration")
+	if (query.Username != config.Username) || (query.Password != config.Password) {
 		if config.LogVerbose {
 			if query.Username != config.Username {
 				log.Printf("query.Username=%s, expected=%s", query.Username, config.Username)
@@ -346,25 +361,26 @@ func dyndnsHandler(w http.ResponseWriter, r *http.Request) {
 			if query.Password != config.Password {
 				log.Printf("query.Password=%s, expected=%s", query.Password, config.Password)
 			}
+		}
+		responseWithError(w, http.StatusUnauthorized, "badauth", "[ERROR] Query parameters do not match configuration")
+		return
+	}
+	if query.Domain != config.Domain {
+		if config.LogVerbose {
 			if query.Domain != config.Domain {
 				log.Printf("query.Domain=%s, expected=%s", query.Domain, config.Domain)
 			}
 		}
-		http.Error(w, "badauth", http.StatusUnauthorized)
+		responseWithError(w, http.StatusUnauthorized, "nohost", "[ERROR] Domain does not match configuration")
 		return
 	}
 
-	responseIp := query.IpAddr
-	if responseIp == "" {
-		responseIp = query.Ip6Addr
-	}
-
-	tracker := NewStatusTracker(responseIp)
+	tracker := NewStatusTracker(query.IpAddr, query.Ip6Addr)
 
 	for i, p := range config.Providers {
 		uri := p.Uri
-		uri = strings.ReplaceAll(uri, "<domain>", p.Domain)
-		uri = strings.ReplaceAll(uri, "<ipaddr>", query.IpAddr)
+		uri = strings.ReplaceAll(uri, "<domain>", url.QueryEscape(p.Domain))
+		uri = strings.ReplaceAll(uri, "<ipaddr>", url.QueryEscape(query.IpAddr))
 		var ip6addr string
 		lazyWarning := ""
 		var lazyError error
@@ -382,9 +398,9 @@ func dyndnsHandler(w http.ResponseWriter, r *http.Request) {
 		} else {
 			ip6addr = query.Ip6Addr
 		}
-		uri = strings.ReplaceAll(uri, "<ip6addr>", ip6addr)
-		uri = strings.ReplaceAll(uri, "<ip6lanprefix>", query.Ip6LanPrefix)
-		uri = strings.ReplaceAll(uri, "<dualstack>", query.Dualstack)
+		uri = strings.ReplaceAll(uri, "<ip6addr>", url.QueryEscape(ip6addr))
+		uri = strings.ReplaceAll(uri, "<ip6lanprefix>", url.QueryEscape(query.Ip6LanPrefix))
+		uri = strings.ReplaceAll(uri, "<dualstack>", url.QueryEscape(query.Dualstack))
 
 		loggingUri := uri
 		loggingUri = strings.ReplaceAll(loggingUri, "<username>", "*****")
@@ -399,8 +415,8 @@ func dyndnsHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		uri = strings.ReplaceAll(uri, "<username>", p.Username)
-		uri = strings.ReplaceAll(uri, "<passwd>", p.Password)
+		uri = strings.ReplaceAll(uri, "<username>", url.QueryEscape(p.Username))
+		uri = strings.ReplaceAll(uri, "<passwd>", url.QueryEscape(p.Password))
 
 		// Make HTTP GET request with 60s timeout
 		httpClient := &http.Client{Timeout: 60 * time.Second}
@@ -415,7 +431,7 @@ func dyndnsHandler(w http.ResponseWriter, r *http.Request) {
 
 		if config.LogVerbose {
 			//log response headers
-			log.Printf("[HEADERS] Index=%d URL=%s Status=%d Headers:", i, loggingUri, resp.StatusCode)
+			log.Printf("[RESPONSE-HEADERS] Index=%d URL=%s Status=%d Headers:", i, loggingUri, resp.StatusCode)
 			for k, v := range resp.Header {
 				log.Printf("    %s: %s", k, strings.Join(v, ", "))
 			}
@@ -425,11 +441,9 @@ func dyndnsHandler(w http.ResponseWriter, r *http.Request) {
 		exactReturnCodeMatch := false
 		// 1. check for exact return code match in header DDNSS-Response
 		// Extended evaluation: Header "DDNSS-Response" and "DDNSS-Message"
-		ddnssResponse := resp.Header.Get("DDNSS-Response")
-		if ddnssResponse != "" {
-			result = ddnssResponse
+		if result = resp.Header.Get("DDNSS-Response"); result != "" {
 			exactReturnCodeMatch = true
-			log.Printf("[RESPONSE] Index=%d URL=%s Status=%d DDNSS-Response=%s\n", i, loggingUri, resp.StatusCode, ddnssResponse)
+			log.Printf("[RESPONSE] Index=%d URL=%s Status=%d DDNSS-Response=%s\n", i, loggingUri, resp.StatusCode, result)
 			ddnssMessage := resp.Header.Get("DDNSS-Message")
 			if ddnssMessage != "" {
 				log.Printf("[DDNSS-Message] Index=%d Message=%s\n", i, ddnssMessage)
@@ -456,7 +470,17 @@ func dyndnsHandler(w http.ResponseWriter, r *http.Request) {
 		tracker.CheckStatus(result, exactReturnCodeMatch)
 	}
 
+	w.Header().Set(tracker.HeaderStatus, tracker.FinalStatus)
 	fmt.Fprintln(w, tracker.FinalStatus)
+}
+
+func responseWithError(w http.ResponseWriter, statusCode int, statusText string, infoMessage string) {
+	if infoMessage != "" {
+		log.Println(infoMessage)
+		w.Header().Set("Error-Message", infoMessage)
+	}
+	w.Header().Set(statusText, statusText)
+	http.Error(w, statusText, statusCode)
 }
 
 // endregion

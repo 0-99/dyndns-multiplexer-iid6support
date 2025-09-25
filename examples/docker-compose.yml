@@ -17,8 +17,8 @@ services:
       ## Domain name: 
       #USER_NAME: 'user' # optional, default 'user'
       USER_PASSWORD: 't0pSecr3t' # mandatory, for example 't0pSecr3t'
-      #USER_DOMAIN_NAME: 'any.domain' # optional, default 'any.domain'
-      #LOG_VERBOSE: false # optional, default false
+      #USER_DOMAIN_NAME: 'dyndns.multiplexer.internal' # optional, default 'dyndns.multiplexer.internal'
+      #LOG_VERBOSE: false # optional, default false. Use with caution. Sensitive information may be logged if this is true.
       # query-params based on the definition in https://fritz.com/service/wissensdatenbank/dok/FRITZ-Box-7490/30_Dynamic-DNS-in-FRITZ-Box-einrichten/
       ## username: required. The username to verify environment-variable "USER_NAME"
       ## passwd: required. The user-password to verify environment-variable "USER_PASSWORD"
@@ -44,7 +44,7 @@ services:
             "username": "example" ,
             "passwd": "anotherExample",
             "domain": "exampledomain.my.domain",
-            "iid6": "cafe:babe:dead:beef"
+            "iid6": "::cafe:babe:dead:beef"
           },
           {
             "uri": "https://another.ddns.provider/upd.php?user=<username>&pwd=<passwd>&host=<domain>&ip=<ipaddr>&ip6=<ip6addr>",
@@ -55,9 +55,16 @@ services:
           {
             "uri": "https://www.ddnss.de/upd.php?user=<username>&pwd=<passwd>&host=<domain>&ip=<ipaddr>&ip6=<ip6addr>",
             "username": "example" ,
-            "passwd": "anotherExample",
+            "passwd": "$$anotherExampleWithEscapedDollarSign",
             "domain": "worked.with.ddnss.de",
-            "iid6": "cafe:babe:dead:beef"
+            "iid6": "::cafe:babe:dead:beef"
+          },
+          {
+            "uri": "https://<username>:<passwd>@dyndns.strato.com/nic/update?hostname=<domain>&myip=<ipaddr>,<ip6addr>",
+            "username": "example" ,
+            "passwd": "anotherExample",
+            "domain": "worked.with.strato.com",
+            "iid6": "::cafe:babe:dead:beef"
           }
         ]
     restart: unless-stopped
