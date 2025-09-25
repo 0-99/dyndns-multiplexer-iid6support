@@ -1,6 +1,6 @@
 services:
   app:
-    image: 0-99/dyndns-multiplexer-iid6support:latest
+    image: 0to99/dyndns-multiplexer-iid6support:latest
     #or directly build the image from the Dockerfile in the parent directory
     ##build:
     ##  context: ../
