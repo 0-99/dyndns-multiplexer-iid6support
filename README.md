@@ -127,18 +127,18 @@ In a ***Debian-based system*** using the ***Network Manager (nmcli)***, this can
     Let's assume the client's IPv4-Address is `192.168.24.11/24`, then the client part is the value `11` (as a hex value it is `a`), then the value for the assignment is `::a`. This is the value you can define in the `iid6`-Section for a [provider](#example-provider-configuration)
 
 4. **Make sure that this value is not used by any other client in your network.**  
-    If you use Unique Local Addresses (ULA) in your netzwork, for example with the ULA-prefix "fd", than you can use.  
+    If you use Unique Local Addresses (ULA) in your network, for example with the ULA-prefix "fd", than you can use.  
     ```bash
     # Replace '::a' with the relevant value from step 3
     ping "fd::a"
     ```
 
 5. **Set the stable IID on the client**  
-    > [!WARNING]  
-    > If **Unique Local Addresses (ULA)** is active in your network, the ULA IPv6 address for this client will also change. If the client uses a DNS resolver such as "pi-hole," the changed ULA IPv6 address must be re-entered in the router.
+> [!WARNING]  
+> If **Unique Local Addresses (ULA)** is active in your network, the ULA IPv6 address for this client will also change. If the client uses a DNS resolver such as "pi-hole," the changed ULA IPv6 address must be re-entered in the router.
 
-    > [!CAUTION]  
-    > The actions described here are carried out at your own responsibility. Outcomes may vary depending on your environment, and there is no guarantee regarding safety, reliability, or results.
+> [!CAUTION]  
+> The actions described here are carried out at your own responsibility. Outcomes may vary depending on your environment, and there is no guarantee regarding safety, reliability, or results.
 
     ```bash
     # Replace 'Wired connection 1' with the relevant value from step 1
@@ -153,19 +153,19 @@ In a ***Debian-based system*** using the ***Network Manager (nmcli)***, this can
     nmcli -p c show "Wired connection 1" | grep "ipv6\|IP6"
     ```
 
-    > [!NOTE]  
-    > If you want to reset these settings later, you can restore them using the following commands
-    > ```bash
-    > # Replace 'Wired connection 1' with the relevant value from step 1
-    > sudo nmcli c mod "Wired connection 1" ipv6.token ''
-    > sudo nmcli c mod "Wired connection 1" ipv6.addr-gen-mode stable-privacy
-    > sudo nmcli c mod "Wired connection 1" ipv6.method auto
-    > sudo nmcli c up "Wired connection 1"
-    > # Check if the configuration is set correctly
-    > # Wait a while so that the network addresses can be recreated
-    > sleep 5
-    > nmcli -p c show "Wired connection 1" | grep "ipv6\|IP6"
-    > ```
+> [!NOTE]  
+> If you want to reset these settings later, you can restore them using the following commands
+> ```bash
+> # Replace 'Wired connection 1' with the relevant value from step 1
+> sudo nmcli c mod "Wired connection 1" ipv6.token ''
+> sudo nmcli c mod "Wired connection 1" ipv6.addr-gen-mode stable-privacy
+> sudo nmcli c mod "Wired connection 1" ipv6.method auto
+> sudo nmcli c up "Wired connection 1"
+> # Check if the configuration is set correctly
+> # Wait a while so that the network addresses can be recreated
+> sleep 5
+> nmcli -p c show "Wired connection 1" | grep "ipv6\|IP6"
+> ```
 
 6. (optional) As mentioned in point 5: If **Unique Local Addresses (ULA)** is active in your network, the ULA IPv6 address for this client will also change. If the client uses a DNS resolver such as "pi.hole," the changed ULA IPv6 address must be re-entered in the router.  
     You can find the ULA IPv6 address with the following command
@@ -173,25 +173,25 @@ In a ***Debian-based system*** using the ***Network Manager (nmcli)***, this can
     # get ULA IPv6 address
     nmcli -p c show "Wired connection 1" | grep "IP6\.ADDRESS" | grep "fd"
     ```
-    > [!TIP]  
-    > Restarting the router is recommended so that all clients receive the updated DNS address.
-    > *(you can do this after **step 8**)*
+> [!TIP]  
+> Restarting the router is recommended so that all clients receive the updated DNS address.
+> *(you can do this after **step 8**)*
 
 7. For routers such as the FritzBox, the **IID (Interface Identifier)** assigned to the client must now be overwritten in the router configuration.  
-    > [!IMPORTANT]  
-    > On routers like FritzBox, the global IPv6 address assigned to a client is typically constructed from the ISP-assigned prefix and the client's IID. For DynDNS to work with custom client addresses, the IID in the router configuration (usually the last 64 bits) must match the IID of the global client IPv6 address.
+> [!IMPORTANT]  
+> On routers like FritzBox, the global IPv6 address assigned to a client is typically constructed from the ISP-assigned prefix and the client's IID. For DynDNS to work with custom client addresses, the IID in the router configuration (usually the last 64 bits) must match the IID of the global client IPv6 address.
 
-    For the FritzBox for example, navigate to
-    `http://fritz.box/ → Home network → Network → edit the relevant client`
+* For the FritzBox for example, navigate to
+`http://fritz.box/ → Home network → Network → edit the relevant client`
 
-    > [!CAUTION]  
-    > The actions described here are carried out at your own responsibility. Outcomes may vary depending on your environment, and there is no guarantee regarding safety, reliability, or results.
+> [!CAUTION]  
+> The actions described here are carried out at your own responsibility. Outcomes may vary depending on your environment, and there is no guarantee regarding safety, reliability, or results.
 
-    Overwrite the ***IPv6 Interface-ID*** with the relevant value from **step 3**. For the example from step 3 it is `::0:0:0:a`
+* Overwrite the ***IPv6 Interface-ID*** with the relevant value from **step 3**. For the example from step 3 it is `::0:0:0:a`
 
 8. Check the router's port forwarding configuration to make sure the correct IID (Interface Identifier) is being used. If not, reconfigure port forwarding.
-    > [!TIP]  
-    > Restarting the router is recommended
+> [!TIP]  
+> Restarting the router is recommended
 
 ## License
 [MIT](LICENSE)
