@@ -50,6 +50,19 @@ This project takes a different approach: it does not use PULL, but acts as a sel
   - `<ip6addr>`: If `iid6` is set in the provider, `<ip6lanprefix>` + `iid6` is used *(You may want to take a look at the [IID requirements](#requirements-for-ipv6-iid-interface-identifier))*; otherwise, the value from `ip6addr`
 
 ## Example Provider Configuration
+
+Each provider configuration is a JSON object with the following attributes:
+
+| Attribute   | Type   | Required | Description |
+|-------------|--------|----------|-------------|
+| uri         | string | yes      | The provider update URL. Supports placeholders: `<username>`, `<passwd>`, `<domain>`, `<ipaddr>`, `<ip6addr>`, `<ip6lanprefix>`, `<dualstack>`. |
+| username    | string | strongly recommended | Username for the provider (used for placeholder `<username>`). You may also insert the value directly in the `uri`, but it is strongly recommended to use the attribute: only then will the value be masked in logs and not exposed in plain text. |
+| passwd      | string | strongly recommended | Password for the provider (used for placeholder `<passwd>`). You may also insert the value directly in the `uri`, but it is strongly recommended to use the attribute: only then will the value be masked in logs and not exposed in plain text. |
+| domain      | string | no      | Domain to update (used for placeholder `<domain>`). |
+| iid6        | string | no       | Optional IPv6 Interface ID. If set, `<ip6addr>` is constructed from `<ip6lanprefix>` + `iid6`. Examples: `::cafe:babe:dead:beef`, `::a`
+| delay_ms    | int    | no       | Optional delay in milliseconds before the request is sent to the provider. If set, the application waits the specified time before making the request. This is especially useful if you send multiple requests to the same DynDNS provider in quick succession, as it can help prevent HTTP 429 (Too Many Requests) errors due to rate limiting or protection mechanisms. |
+| description | string | no       | Optional free text for documentation purposes. Not evaluated by the application. |
+
 ```json
 [
   {
@@ -57,20 +70,23 @@ This project takes a different approach: it does not use PULL, but acts as a sel
     "username": "example" ,
     "passwd": "anotherExample",
     "domain": "exampledomain.my.domain",
-    "iid6": "::cafe:babe:dead:beef"
+    "iid6": "::cafe:babe:dead:beef",
+    "description": "Example provider configuration with custom iid6"
   },
   {
     "uri": "https://another.ddns.provider/upd.php?user=<username>&pwd=<passwd>&host=<domain>&ip=<ipaddr>&ip6=<ip6addr>",
     "username": "custom" ,
     "passwd": "pwd",
-    "domain": "anotherdomain.other.domain"
+    "domain": "anotherdomain.other.domain",
+    "description": "Example provider configuration without custom iid6"
   },
   {
     "uri": "https://www.ddnss.de/upd.php?user=<username>&pwd=<passwd>&host=<domain>&ip=<ipaddr>&ip6=<ip6addr>",
     "username": "example" ,
     "passwd": "$$anotherExampleWithEscapedDollarSign",
     "domain": "worked.with.ddnss.de",
-    "iid6": "::cafe:babe:dead:beef"
+    "iid6": "::cafe:babe:dead:beef",
+    "delay_ms": 50
   },
   {
     "uri": "https://<username>:<passwd>@dyndns.strato.com/nic/update?hostname=<domain>&myip=<ipaddr>,<ip6addr>",
@@ -84,8 +100,6 @@ This project takes a different approach: it does not use PULL, but acts as a sel
 
 If the `username`, `passwd` or anything else in your configuration uses a dollar sign `$`:  
 Note that in Docker-Compose you need to escape the dollar sign `$` with a second dollar sign `$$`.
-
-You can also add custom attributes to each provider item. While these aren't evaluated by the application, they can be useful for describing the item (like a "description" attribute).
 
 ## Example docker-compose
 See [examples/docker-compose.yml](examples/docker-compose.yml) for a full configuration example.
