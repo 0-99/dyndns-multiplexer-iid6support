@@ -14,7 +14,6 @@ services:
     environment:
       # example from fritzbox-dyndns-configuration:
       ## Update-URL: http://ip-to-your-container-host:8085/update?username=<username>&passwd=<passwd>&domain=<domain>&ipaddr=<ipaddr>&ip6addr=<ip6addr>&ip6lanprefix=<ip6lanprefix>&dualstack=<dualstack>
-      ## Domain name: 
       #USER_NAME: 'user' # optional, default 'user'
       USER_PASSWORD: 't0pSecr3t' # mandatory, for example 't0pSecr3t'
       #USER_DOMAIN_NAME: 'dyndns.multiplexer.internal' # optional, default 'dyndns.multiplexer.internal'
@@ -37,6 +36,7 @@ services:
       ##           if provider attribute "iid6" NOT exists: content of query param "ip6addr"
       ## <ip6lanprefix>: content of query param "ip6lanprefix"
       ## <dualstack>: content of query param "dualstack"
+      # Checkout the README.md for more PROVIDER examples and configuration options:  (https://github.com/0-99/dyndns-multiplexer-iid6support/blob/main/README.md#example-provider-configuration)
       PROVIDERS: |
         [
           {
@@ -44,27 +44,15 @@ services:
             "username": "example" ,
             "passwd": "anotherExample",
             "domain": "exampledomain.my.domain",
-            "iid6": "::cafe:babe:dead:beef"
+            "iid6": "::cafe:babe:dead:beef",
+            "description": "Example provider configuration with custom iid6"
           },
           {
             "uri": "https://another.ddns.provider/upd.php?user=<username>&pwd=<passwd>&host=<domain>&ip=<ipaddr>&ip6=<ip6addr>",
             "username": "custom" ,
             "passwd": "pwd",
-            "domain": "anotherdomain.other.domain"
-          },
-          {
-            "uri": "https://www.ddnss.de/upd.php?user=<username>&pwd=<passwd>&host=<domain>&ip=<ipaddr>&ip6=<ip6addr>",
-            "username": "example" ,
-            "passwd": "$$anotherExampleWithEscapedDollarSign",
-            "domain": "worked.with.ddnss.de",
-            "iid6": "::cafe:babe:dead:beef"
-          },
-          {
-            "uri": "https://<username>:<passwd>@dyndns.strato.com/nic/update?hostname=<domain>&myip=<ipaddr>,<ip6addr>",
-            "username": "example" ,
-            "passwd": "anotherExample",
-            "domain": "worked.with.strato.com",
-            "iid6": "::cafe:babe:dead:beef"
+            "domain": "anotherdomain.other.domain",
+            "description": "Example provider configuration without custom iid6"
           }
         ]
     restart: unless-stopped

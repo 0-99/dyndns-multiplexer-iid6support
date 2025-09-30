@@ -27,7 +27,8 @@ type Provider struct {
 	Password   string `json:"passwd,omitempty"`
 	Domain     string `json:"domain,omitempty"`
 	Iid6       string `json:"iid6,omitempty"`
-	Iid6Masked net.IP `json:"-"` // will be set later if Iid6 is valid
+	DelayMs    int    `json:"delay_ms,omitempty"` // optional delay in milliseconds before request
+	Iid6Masked net.IP `json:"-"`                  // will be set later if Iid6 is valid
 }
 
 type Config struct {
@@ -122,7 +123,7 @@ func main() {
 				iid6Parsed = ""
 			}
 
-			log.Printf("Provider[%d]: uri=%s, domain=%s, iid6=%s", i, p.Uri, p.Domain, iid6Parsed)
+			log.Printf("Provider[%d]: uri=%s, domain=%s, iid6=%s, delay_ms=%d", i, p.Uri, p.Domain, iid6Parsed, p.DelayMs)
 		}
 	}
 
@@ -413,6 +414,14 @@ func dyndnsHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("[ERROR] Index=%d URL=%s Error=%v\n", i, loggingUri, lazyError)
 			tracker.CheckStatus("911", true)
 			continue
+		}
+
+		// Optional delay before request
+		if p.DelayMs > 0 {
+			if config.LogVerbose {
+				log.Printf("[DELAY] Index=%d URL=%s, Waiting %d ms before request\n", i, loggingUri, p.DelayMs)
+			}
+			time.Sleep(time.Duration(p.DelayMs) * time.Millisecond)
 		}
 
 		uri = strings.ReplaceAll(uri, "<username>", url.QueryEscape(p.Username))
